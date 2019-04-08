@@ -1,6 +1,6 @@
 ---
 title: "Credit Standing Analysis"
-author: 'Anjukutty Joseph : R00171244'
+author: 'Anjukutty Joseph'
 date: "05 December 2018"
 output: word_document
 ---
