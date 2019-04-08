@@ -1,0 +1,448 @@
+---
+title: "Credit Standing Analysis"
+author: 'Anjukutty Joseph : R00171244'
+date: "05 December 2018"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.width=7, fig.height=3,echo = TRUE)
+```
+###Objective
+The purpose of this analysys is to assess the credit worthiness of future potential customers in a finacial institution . 
+
+**Exploratory Data Analysis**    
+The data set analysed in this report consists of 780 past loan customer cases, with each case classified as either good or bad loan. A scoring dataset of 13 observations are used to predict the behaviour of the model. A first glance of the dataset shows below details.
+
+```{r,echo = FALSE}
+CreditReport <- read.csv("C:/Anjukutty/CIT/DataScienceandAnalysis/Assignment/CreditReport.csv")
+str(CreditReport) 
+# Rename Columns having long names
+colnames(CreditReport)[12] <- "ResidenceTime"
+colnames(CreditReport)[11] <- "CheckAccOpenMonths"
+#Assign NA to missing values
+CreditReport$Employment[CreditReport$Employment == ""] <- NA
+CreditReport$Personal.Status[CreditReport$Personal.Status == ""] <- NA
+CreditReport$Housing[CreditReport$Housing == ""] <-  NA
+CreditReport$Personal.Status = factor(CreditReport$Personal.Status)
+CreditReport$Employment <- factor(CreditReport$Employment)
+CreditReport$Housing = factor(CreditReport$Housing)
+```
+The dataset contains 13 customer attributes, 10 attributes are categorical and 3 are continuous. ID column is ignored in this analysis. Categorical variables are factor type and others are numerical.
+Columns- 'Employment', 'Personal Status' and 'Housing' are found to have some missing values. Among them 'personal status' and 'Housing' have less than 1% missing and 'Employment' have around 4% missing values out of total records. Since the percentage of such records are few and also to keep it simple, 'NA' is assigned to missing values. The names and meaning of each variable is shown in the table below. Two variables having long names are renamed for ease of use.
+
+```{r, echo=FALSE}
+knitr::include_graphics("C:\\Anjukutty\\CIT\\DataScienceandAnalysis\\Assignment\\EDAssignment\\variables.png")
+```
+
+###Data Visualisation 
+To have an understanding of various attributes and relationship among them, following visual analysis are performed. 
+
+
+#### Univariate Analysis 
+
+```{r pressure, echo=FALSE}
+# credit Standing distribution
+b =round((table(CreditReport$Credit.Standing)[1]/ sum(table(CreditReport$Credit.Standing)))*100,2)
+g =round((table(CreditReport$Credit.Standing)[2]/ sum(table(CreditReport$Credit.Standing)))*100,2)
+
+pie(table(CreditReport$Credit.Standing), labels = c(paste(b,"%, Bad"), paste(g, "%, Good")),
+    main = "Credit Standing Distribution")
+```
+```{r, echo=FALSE}
+library("ggplot2")
+# Age
+hist(CreditReport$Age, main = "Frequency distribution of age", xlab = "Age", col = "blue")
+# Employment
+tEmployment = table(CreditReport$Employment)
+barplot(tEmployment[order(tEmployment, decreasing = TRUE)],
+        main = "Frequency distribution of Employment", xlab = "Employment")
+
+```
+The credit standing disrtbution shows that more loans are good than bad in given dataset. So the baseline model will be correct 59.1% of the time. The aim is to create a model which gives more accuracy than this baseline. 
+From frquency distribution of emplyments, the number people having short term employment are more. Age is skewed and doesn't look normally distributed. 
+
+####Bivariate Analysis 
+
+To understand the influence of individual variables on credit standing, below plots are made.
+
+```{r, echo = FALSE}
+# Bivariate
+goodCreditCustomers = subset(CreditReport, CreditReport$Credit.Standing == "Good")
+badCreditCustomers = subset(CreditReport, CreditReport$Credit.Standing == "Bad")
+ggplot(data = goodCreditCustomers, aes(x=goodCreditCustomers$Credit.History)) + geom_bar()+
+       ggtitle("Credit history distribution for customers having 'good' credit standing")+
+       xlab("Credit History") + ylab("Frequency")
+ggplot(data = badCreditCustomers, aes(x=badCreditCustomers$Credit.History)) + geom_bar()+
+       ggtitle("Credit history distribution for customers having 'bad' credit standing")+
+       xlab("Credit History") + ylab("Frequency")
+ggplot(CreditReport, aes(Credit.Standing,..count..)) + geom_bar(aes(fill = Employment), position = "dodge")
+
+ggplot(CreditReport, aes(Credit.Standing, Age))+geom_boxplot()
+
+```
+
+From the barplot of credit standing and credit history, it is clear that majority of customers in the dataset having 'critical' credit history have 'bad' credit standing. Those who have 'All Paid' credit history are more likely to have good credit standing. So the variable 'credit history' has a significance in determining credit standing. 
+A graph of employment aganist credit standing is made to check for any pattern.It is difficult to generalise but variable 'Employment'  seems to have some significane in predicting credit standing. 
+
+From the boxplot of Age and credit standing, those who have good credit standing have slightly higher median age when compared to people having bad credit.
+
+####Trivariate Analysis 
+
+It is difficult to get a clear vision of the effect of other variables in the dataset on credit standing. However,the variable 'Foreign National' seems to have some predicting capacity. So a trivariate analysis of 'credit standing, credit history and Foreign national is performed using 'flat' contingency tables to get a more clear sense of the relationship. Its matrix representation is shown below
+
+
+
+
+
+```{r, echo=FALSE}
+
+#Trivariate analysis
+### ANOVA TABLE/F TABLE#######################################################
+ftable(creditStanding = CreditReport$Credit.Standing, CreditHistory=CreditReport$Credit.History, ForeignNational = CreditReport$Foreign.National)
+
+```
+It is interesting to see that, there are more foreign customers than local residents and only 15% foreign nationals have critical credit history and majority of them have good credit standing.
+
+
+
+
+###b. ROC Curve(Receiver Operating Characteristic)
+ROC curve serves to measure the perfomance of the classification model.This is used as a perfomance metric for classification problems. The x axis of ROC curve represents False positive Rate (FPR) and y axis represents True positive rate (TPR).  
+**FPR** : Percentage of records that the model classifies as positive but are actually negative.  
+**TPR **: Percentage of records that the model classifies as positive and are positive  
+FPR and TPR can be calculated from confusion matrix. For the confusion matrix displayed below FPR and TPR are calculated. 
+
+#####Confusion Matrix 
+
+```{r, echo=FALSE}
+knitr::include_graphics("C:\\Anjukutty\\CIT\\DataScienceandAnalysis\\Assignment\\EDAssignment\\confusionmatrix.png") 
+``` 
+
+True Positive Rate(TPR) for the above confusion matrix = TP/TP+FN 
+                          = 5/(5+3)  
+False Positive Rate(FPR) for the aabove confusion matrix = FP/FP+TN 
+                          = 2/(2+17) 
+                          
+A sample image of ROC curve is shown below.  It shows the behavior of classification model for all possible threshold. A threshold is a value chosen to classify each record in the dataset to which class it belongs. ROC curve captures the variations in TPR and FPR with the change in threshold. For a best model, TPR should be high and FPR should be low.
+
+Area under ROC curve is a measurement of how good the model is in classifying the two outcomes. For example, in credit standing analysis, higher AUC of ROC curve indicates the final model is better in predicting good credit standing as good and bad credit standing as bad. An AUC near to 1 shows a best model. The middle blue line represents kind of no information line and in such case AUC will be  0.5 which means the model has no class separation  capacity.
+
+```{r, echo=FALSE,fig.cap="ROC CURVE"}
+knitr::include_graphics("C:\\Anjukutty\\CIT\\DataScienceandAnalysis\\Assignment\\EDAssignment\\roc.png")
+```
+```{r, echo=FALSE,fig.cap="ROC Curve with AUC =1", fig.width=3, fig.height=1}
+knitr::include_graphics("C:\\Anjukutty\\CIT\\DataScienceandAnalysis\\Assignment\\EDAssignment\\roc1.png") 
+``` 
+        
+              Fig :ROC Curve with AUC =1
+
+
+##C. Decision tree 
+To obtain an accurate model, using supervsed learning technique, a decision tree is built to decide credit standing. This model is built by considering all variables except ID to predict credit standing. The dataset is split into 80:20 ratio randomly for training and test of the model.The picture of decision tree model is displayed below. 
+
+
+```{r, echo=FALSE}
+#install.packages("tree")
+#install.packages("randomForest")
+library(tree)
+library(randomForest)
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+set.seed(244)
+# Build normal classification tree aganist all variables
+train_tree_data <- CreditReport[sample(nrow(CreditReport),624),] #80%
+test_tree_data <- CreditReport[ !(CreditReport$ID %in% train_tree_data$ID),]
+tree_ModRpart = rpart(Credit.Standing~.-ID, train_tree_data)
+fancyRpartPlot(tree_ModRpart, cex =0.7, caption  = "Decision tree Model with all variables")
+
+```
+
+As shown in the tree diagram out of 12 predictor variables, 7 variables namely "Credit.History"  ,"Employment","ResidenceTime", "Loan.Reason","Checking account","age" and "savings Acct" are involved in building this tree model. 
+These variables are considered to be most significant in predicting Credit Standng for customers by this model. This model is trained on 624 samples.There are 16 terminal nodes which classifies a given customer has good or bad credit standng.
+This decision tree classifies customers having 'critical' credit history to have bad credit standing without any further checking on other variables. A summary of the model is displayed below. 
+ 
+```{r, echo=FALSE}
+printcp(tree_ModRpart)
+```
+The confusion matrix displayed below shows an accuracy of  76.9%  for this model when tested with test dataset. This is better than baseline which was 59.1%. 
+
+```{r, echo = FALSE}
+tree_Model1_pred = predict(tree_ModRpart,test_tree_data, type = "class")
+table(tree_Model1_pred,test_tree_data$Credit.Standing)
+```
+
+While doing exploratory data analsys in first step,the variables credit history, loan reason, foreign national and employment appeared to have significance in deciding credit standing. But, The decision tree model created with these attributes resulted in less accuracy .The misclassification rate for that model was high. So the model with selected attributes are ignored.
+
+```{r eval=FALSE, include=FALSE}
+# This block of code is used to generate decision tree with selected attributes.
+# But the model resulted in less accuracy. 
+tree_Model2 = tree(Credit.Standing~Credit.History+Employment+Foreign.National+Loan.Reason+Savings.Acct,data =train_tree_data)
+plot(tree_Model2)
+text(tree_Model2,pretty =0,cex =0.6)
+summary(tree_Model2)
+str(test_tree_data)
+table(predict(tree_Model2,test_tree_data,type= "class"), test_tree_data$Credit.Standing)
+```
+
+
+
+##### Pruning 
+Even though this tree model gives 76.9% correct predictions on test dataset, It is a bit bushy. The misclassification of actual bad as good is 26.47% and actual good as bad is 20.45%. Inorder to reduce misclassification error, an attempt is made to prune this model by taking misclassification as tuning parameter.
+
+
+```{r, echo=FALSE}
+plotcp(tree_ModRpart)
+# Least deviation at size =4
+```
+
+From the graph above, the relative error for the decision tree model is least at cp =0.03. So, to reduce misclassification, this cp value is picked to prune the tree.
+The pruned tree model is displayed below.
+
+```{r, echo = FALSE}
+prune.tree_Model1 = prune(tree_ModRpart, cp =      tree_ModRpart$cptable[which.min(tree_ModRpart$cptable[,"xerror"]),"CP"])
+fancyRpartPlot(prune.tree_Model1, cex =0.7, caption = "Pruned Tree Model")
+```
+
+```{r, echo = FALSE}
+prune.tree_Model1_pred = predict(prune.tree_Model1, test_tree_data, type = "class")
+table(prune.tree_Model1_pred, test_tree_data$Credit.Standing)
+``` 
+
+The resultant pruned model has accuracy of 80% when tested with test data. This is an improvement from the first decision tree model built using all variables.The pruned model has 4 leaf nodes and decision is taken based on two variables- credit history and Employment.  These two variables are  considered most relevant in predicting the credit standing of customer. Another great advantage after pruning is that, the tree is more shallow and is easily readable.
+ 
+
+###d. Test Model aganist Scoring dataset.
+
+In this section, the pruned tree model is used to predict credit standing potential customers in the scoring dataset. The model is applied to a scoring data having 13 records each one coressponding to 13 potential clients. The working of the model in deciding credit standing is explained below by choosing 3 customers. 
+
+The model is in the shape of a tree  as shown below. It essentially classifies data into smaller subsets and finally reach to a conclusion. It consists of decision nodes and leaf nodes. The leaf node represent the results which in this analysis is 'good' or 'bad' credit standing. The decision node applies a condition to a given record and partition it accordingly. The top most node represent the most significant variable or best best predictor variable which is credit history.
+
+```{r, echo=FALSE}
+# Load scoring data to RStudio
+scoreData = read.csv("C:/Anjukutty/CIT/DataScienceandAnalysis/Assignment/EDAssignment/ScoringData.csv")
+# Rename Columns having long names
+colnames(scoreData)[12] <- "ResidenceTime"
+colnames(scoreData)[11] <- "CheckAccOpenMonths"
+modelPrediction = predict(prune.tree_Model1,scoreData, type = "class")
+```
+
+```{r, echo=FALSE}
+fancyRpartPlot(prune.tree_Model1, cex =0.7)
+```
+The predicted credit standing for 13 clients are as below. 
+
+```{r}
+modelPrediction
+```
+
+Among them, following 3 customer's credit standing prediction is taken into account to explain the decision making process. 
+
+```{r echo=FALSE, fig.height=1, fig.width=3}
+knitr::include_graphics("C:\\Anjukutty\\CIT\\DataScienceandAnalysis\\Assignment\\EDAssignment\\scoreDecision.png") 
+```
+
+Customer1: First check at root node is whether customer has critical credit history.Since this customer has credit history of "All Paid",  it is routed to right child node corresponding to 'no critical credit history'.
+The next decision node checks whether this customer has either 'current' or 'Delay' credit history. The decision at this node is 'no' since it is 'All Paid' and hence this customer is routed to its right child node which is the result leaf node the tree classify the credit standing of customer as 'good'. The prediction at this leaf node was correct 92% of the time,while training this model which is indicated in the box.
+
+Customer2. This customer has 'Current' credit history. So the first check yields result 'no' so tree inturn takes it  to right child node of root node. This node checks if customer is having 'current' or 'Delay' credit history. This condition will give result 'yes' and the model  takes the customer to left child node of current node. This node consider another attribute of customer which is 'short term' employment. Since this customer has 'medium' employment the model predicts 'good' credit standing.The prediction at this leaf node was correct 66% of the time,while training this model which is indicated in the box. 
+
+Customer 3: The most significant deciding factor according to this model is ' critical' credit history. As this customer has' critical' history the top most node check gives 'yes' and tree model route the customer to left child node which predicts the credit standing is going to be bad. 99% of the time, the predictions was correct at this node while training this model.
+
+####Accuracy Calculation 
+
+The accuracy of the model is calculated by testing it using test dataset. This test dataset was not part of model building. From the confusion matrix below , the model was capable of predicting correct result 80% of the time. Confusion matrix shows actual values aganist predicted values by model. 
+(45+80)/156 = 80.1% .
+
+```{r, echo=FALSE}
+table( predict(prune.tree_Model1, test_tree_data, type = "class"), test_tree_data$Credit.Standing)
+```
+
+
+##E. Ensemble techniques 
+
+An improvement in model is tried using random forest ensemble technique. Random forest fits a number of trees on various sub samples of the dataset and averages the output to increase accuracy of result. A random sample of 80% is chosen to train the model. As shown in the graph, OOB error is least when mtry =2. So when doing a split 2 variables are chosen random which best suits the split by this model. Number of trees is 500.
+```{r, echo = FALSE}
+###########################################RANDOm Forest#####################################
+
+CReportRForest <- read.csv("C:\\Anjukutty\\CIT\\DataScienceandAnalysis\\Assignment\\RandomForest\\CreditReport.csv")
+set.seed(244)
+RFtrain_tree_data <- CReportRForest[sample(nrow(CReportRForest),600),] #80%
+RFtest_tree_data <- CReportRForest[ !(CReportRForest$ID %in% RFtrain_tree_data$ID),]
+tuneRF(RFtrain_tree_data[,c(2:13)], RFtrain_tree_data[,14],
+       mtryStart = 1,stepFactor = 2)
+fit = randomForest(Credit.Standing~.-ID, 
+                   data = RFtrain_tree_data,mtry = 2, 
+                   importance = TRUE, na.action = na.exclude,ntree=500)
+fitPrediction = predict(fit, RFtest_tree_data)
+table(fitPrediction,RFtest_tree_data$Credit.Standing)
+#70% accuracy. Accuracy is less than decision tree.
+varImpPlot(fit)
+``` 
+
+From variable importance plot , credit history has most significance and Foreign national has least.
+The accuracy of random forest model when tested on validation dataset is  70%. This is less than the accuracy of pruned decision tree model. So decision tree model is best as of now. The tuning parametres provided to build the model are, mtry =2 as it shows least OOB error and number of trees  as 5000.  The poor perfomance of tree can be due to the dataset analysed here. In addition to that, this model did not consider any other tuning parameters like nodesize,classwt etc.   
+
+##Boosting
+Another ensemble technique 'boosting' is tried to build a suitable and accurate model from dataset. Boosting is a sequential execution in which each model is generated by trying to reduce the bias created in the previous model. Random sample of 80% of training data is taken to train the boosting model. 
+The accuracy of this model is 70% when applied on test data.  Although boosting is a very powerful technique , it doesn't seem to help here in imroving the accuracy. This can be because of the variance in data set as it was only 630 records. Another reason could be selection of inappropriate tuning parameters. This model was built by supplying tuning parameters as following.number of trees 5000, shrinkage= 0.01 and shrinkgae which is the number of splits as 2. 
+
+```{r, echo= FALSE}
+
+#########################################BOOSTING!!!!###############################################
+library(gbm)
+set.seed(244)
+train = sample(1:nrow(CreditReport),630)
+test = CreditReport[-train,]
+CreditReport$CStanding = as.numeric(CreditReport$Credit.Standing)
+CreditReport$CStanding = CreditReport$CStanding -1
+boostModel = gbm(CStanding ~.-Credit.Standing-ID, data = CreditReport[train,], distribution = "bernoulli",
+                 n.trees=5000,interaction.depth = 2,shrinkage = 0.01)
+summary(boostModel)
+```
+Confusion Matrix
+
+```{r, echo=FALSE}
+## Prediction
+
+boostPrediction = predict(boostModel, newdata = test,n.trees =5000,
+                          type = "response")
+hist(boostPrediction, main = "Histogram of predictions after boosting the model")
+predict_class = ifelse(boostPrediction<0.5, "bad", "good")
+table(predict_class,test$Credit.Standing)
+
+library(ROCR)
+fitpreds = predict(boostModel,test,type = "response",n.trees =5000)
+fitpred = prediction(fitpreds,test$Credit.Standing)
+fitperf = performance(fitpred,"tpr","fpr")
+plot(fitperf,col="green",lwd=2,main="ROC Curve of Boosting Model")
+abline(a=0,b=1,lwd=2,lty=2,col="blue")
+```
+From the ROC curve and Confusion matrix, it is visible that the boosting model misclassified many actual bad ones as good ones. So, the FPR is high.
+
+##f.Misclassification.
+
+Classification Error: In the given dataset, around 60% of customers have good credit standing and around 40 % have bad.  This is almost fairly balanced. But, there are chances that there is big gap between good class and bad class. For example, if 95% of customers in the analysed dataset was good and only 5% have bad credit the model accuracy will be misleading.
+
+Classification Error = FP/(FP+TN) + FN/(FN+TP)
+
+The confusion matrix for the best model(decision tree),is as shown below.The red boxes indicates misclassified data.
+
+```{r echo=FALSE, fig.height=1, fig.width=3}
+knitr::include_graphics("C:\\Anjukutty\\CIT\\DataScienceandAnalysis\\Assignment\\EDAssignment\\conMatrix.png") 
+``` 
+
+
+Given, 
+cost of misclassifying actual bad as good is :1 
+cost of misclassifying actual good as bad is : 5 
+
+Using the confusion matrix above , the best model classified 23 out of 68 bad customers as good. Also, it classified 8 out of 88 good customers as bad.
+So the average cost per classified record is (23*1+8*5)/156 = 0.4 
+To understand more on misclassification, Linear Discriminant Analysis and quadratic discriminant analysys is performed. 
+
+**LDA** 
+
+```{r, echo = FALSE}
+library(lda)
+library(MASS)
+lda.model = lda(Credit.Standing~Credit.History+Employment, data = RFtrain_tree_data)
+lda.model
+ldaPrediction = predict(lda.model,RFtest_tree_data,type = "class")
+table(ldaPrediction$class,RFtest_tree_data$Credit.Standing)
+```
+```{r,echo=FALSE}
+
+qda_model = qda(Credit.Standing~Credit.History+Employment, data = train_tree_data)
+qdaPrediction = predict(qda_model,test_tree_data,type = "class")
+table(qdaPrediction$class,test_tree_data$Credit.Standing)
+qda_model
+```
+
+To investigate the effect of misclassification, a biased dataset is created where 94% of records have 'bad' credit standing and 6% have 'good' credit standing. The new model is shown below.
+
+```{r, echo = FALSE}
+
+# Biased data with 94% bad and 6% good. It has 343 records
+biasedReport<- read.csv("C:\\Anjukutty\\CIT\\DataScienceandAnalysis\\Assignment\\EDAssignment\\BiasedData.csv")
+
+set.seed(244)
+# out of 343, 250 records are chosen to train model
+Btrain_data <- biasedReport[sample(nrow(biasedReport),250),]
+Btest_data <- biasedReport[ !(biasedReport$ID %in% Btrain_data$ID),]
+bTreeModel = rpart(Credit.Standing~.-ID, Btrain_data)
+fancyRpartPlot(bTreeModel, cex =0.7, caption  = "Decision tree Model with biased data")
+```
+The confusion matrix gives the accuracy of the model as 96.7%.
+But the high accuracy is not trustable because model is trained on a biased data. it classified 60% of good customers as bad. When such a model is applied to records which has more probable good customers, there are more chances that the model classify them as bad. 
+
+```{r, echo=FALSE}
+
+bTreeModel_pred = predict(bTreeModel,Btest_data, type = "class")
+table(bTreeModel_pred,Btest_data$Credit.Standing)
+``` 
+
+Since the cost of loosing a good customer is more than the cost of giving loan to bad customer, this model is not good in predicting credit standing.
+
+
+##g . Incorret Pattern
+
+In this section, an effort is made to find series of consecutive  ID numbers, where the dataset shows an incorrect pattern for credit Standing.  To find suspicious pattern, I took the decision tree model which was trained on random 80% of the given dataset. Then this model is applied to each subset of 10 records taken sequentially from the dataset to predict the credit standing. My assumption is that, if there was a series of consecutive records of 10 or more where the grading in the given dataset show a suspicious incorrect pattern, then the accuracy for preciction on that subset of 10 by the model will be quite low or approximately 0. 
+
+To implement this thought, I wrote the function testPattern() displayed below. It creates confusion matrix on each sample of 10 records and print the accuracy of prediction of the model. Upon analysing the accuracy, the records having ID numbers between 301- 316 and 711-721  showed lowest accuracy among all.  So to conclude, the outcome of these records are incorrectly recorded in the given dataset. I would have tried to remove these records from the dataset and rebuild the model. I guess the overall accuracy of the model would have improved if I do so.
+
+```{r, echo = TRUE}
+library(caret)
+library(e1071)
+testPattern <- function()
+{
+for( i in  seq(1,780,10))
+{
+  # take sample of 10 consecutive ID numbers
+  sample = subset(CreditReport, ID>i & ID< i+10)
+  patternPrediction = predict(tree_ModRpart, sample, type = "class")
+  #Create confusion matrix and print the accuracy
+  cM = confusionMatrix(table(patternPrediction, sample$Credit.Standing))
+  #print(c(i,cM$overall['Accuracy'])) # This commented so that report looks good.
+}
+}
+testPattern()
+
+```
+
+## Conclusion
+
+From the analysis of given dataset, the most important predictor variables to decide credit standing are, credit history and employment of the customers. This observation was consistent among all models created. Pruned classification tree model gave the maximum accuracy out of all models.
+
+## References
+
+1. http://rstudio-pubs-static.s3.amazonaws.com/73039_9946de135c0a49daa7a0a9eda4a67a72.html
+2. https://www.researchgate.net/publication/321002603_Credit_Approval_Analysis_using_R 
+
+3.https://towardsdatascience.com/understanding-auc-roc-curve-68b2303cc9c5 
+4.https://en.wikipedia.org/wiki/Confusion_matrix 
+5.https://www.youtube.com/watch?v=X4VDZDp2vqw 
+6.http://scg.sdsu.edu/logit_r/ 
+7.https://stats.stackexchange.com/questions/193424/is-decision-tree-output-a-prediction-or-class-probabilities 
+
+8.https://www.r-bloggers.com/in-depth-introduction-to-machine-learning-in-15-hours-of-expert-videos/
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
